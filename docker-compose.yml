@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  php:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - mysql
+    environment:
+      - DB_HOST=mysql
+      - DB_NAME=phone_store
+      - DB_USER=phone_store
+      - DB_PASSWORD=phone_store_password
+    restart: always
+
+  mysql:
+    image: mysql:8.0
+    volumes:
+      - mysql_data:/var/lib/mysql
+    environment:
+      - MYSQL_DATABASE=phone_store
+      - MYSQL_USER=phone_store
+      - MYSQL_PASSWORD=phone_store_password
+      - MYSQL_ROOT_PASSWORD=root_password
+    restart: always
+    ports:
+      - "3306:3306"
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./:/var/www/html
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - php
+    restart: always
+
+volumes:
+  mysql_data:
+  caddy_data:
+  caddy_config: 
