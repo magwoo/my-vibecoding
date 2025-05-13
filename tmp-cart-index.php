@@ -25,7 +25,7 @@
                                 <td class="py-4">
                                     <div class="flex items-center">
                                         <?php if (!empty($item["image"])): ?>
-                                            <img src="<?= $item["image"] ?>" alt="<?= $item["name"] ?>" class="w-16 h-16 object-cover mr-4">
+                                            <img src="/images/products/<?= $item["image"] ?>" alt="<?= $item["name"] ?>" class="w-16 h-16 object-cover mr-4">
                                         <?php else: ?>
                                             <div class="w-16 h-16 bg-gray-200 flex items-center justify-center mr-4">
                                                 <i class="fas fa-mobile-alt text-gray-400 text-xl"></i>
@@ -39,18 +39,15 @@
                                 </td>
                                 <td class="py-4 text-center">$<?= number_format($item["price"], 2) ?></td>
                                 <td class="py-4">
-                                    <form action="/cart/update" method="POST" class="flex justify-center" id="form-<?= $item["id"] ?>">
+                                    <form action="/cart/update" method="POST" class="flex justify-center">
                                         <input type="hidden" name="csrf_token" value="<?= $_SESSION["csrf_token"] ?>">
                                         <input type="hidden" name="item_id" value="<?= $item["id"] ?>">
                                         <div class="flex items-center">
-                                            <button type="button" class="quantity-btn px-2 py-1 border rounded-l bg-gray-100 hover:bg-gray-200" 
-                                                onclick="updateQuantity(<?= $item['id'] ?>, -1)">-</button>
-                                            <input type="number" name="quantity" value="<?= $item["quantity"] ?>" min="1" 
-                                                class="w-12 py-1 text-center border-t border-b" id="quantity-<?= $item["id"] ?>"
-                                                onchange="document.getElementById('form-<?= $item["id"] ?>').submit()">
-                                            <button type="button" class="quantity-btn px-2 py-1 border rounded-r bg-gray-100 hover:bg-gray-200"
-                                                onclick="updateQuantity(<?= $item['id'] ?>, 1)">+</button>
+                                            <button type="button" class="quantity-btn quantity-decrease px-2 py-1 border rounded-l bg-gray-100 hover:bg-gray-200">-</button>
+                                            <input type="number" name="quantity" value="<?= $item["quantity"] ?>" min="1" class="w-12 py-1 text-center border-t border-b">
+                                            <button type="button" class="quantity-btn quantity-increase px-2 py-1 border rounded-r bg-gray-100 hover:bg-gray-200">+</button>
                                         </div>
+                                        <button type="submit" class="ml-2 text-xs text-primary hover:text-green-700">Update</button>
                                     </form>
                                 </td>
                                 <td class="py-4 text-right">$<?= number_format($item["price"] * $item["quantity"], 2) ?></td>
@@ -80,7 +77,7 @@
                 
                 <div class="flex justify-between mb-2">
                     <span>Subtotal</span>
-                    <span>$<?= number_format($cartTotal, 2) ?></span>
+                    <span>$<?= number_format($total, 2) ?></span>
                 </div>
                 
                 <div class="flex justify-between mb-2">
@@ -91,7 +88,7 @@
                 <div class="border-t mt-4 pt-4">
                     <div class="flex justify-between font-bold">
                         <span>Total</span>
-                        <span>$<?= number_format($cartTotal, 2) ?></span>
+                        <span>$<?= number_format($total, 2) ?></span>
                     </div>
                 </div>
                 
@@ -103,17 +100,23 @@
     </div>
     
     <script>
-        function updateQuantity(itemId, change) {
-            const input = document.getElementById('quantity-' + itemId);
-            const currentValue = parseInt(input.value, 10);
-            const newValue = currentValue + change;
-            
-            // Ensure quantity is at least 1
-            if (newValue >= 1) {
-                input.value = newValue;
-                // Submit the form automatically
-                document.getElementById('form-' + itemId).submit();
-            }
-        }
+        // Quantity button handlers
+        document.querySelectorAll('.quantity-decrease').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.parentNode.querySelector('input');
+                const value = parseInt(input.value, 10);
+                if (value > 1) {
+                    input.value = value - 1;
+                }
+            });
+        });
+        
+        document.querySelectorAll('.quantity-increase').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.parentNode.querySelector('input');
+                const value = parseInt(input.value, 10);
+                input.value = value + 1;
+            });
+        });
     </script>
 <?php endif; ?>

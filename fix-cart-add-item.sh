@@ -1,3 +1,10 @@
+#!/bin/bash
+
+# Create temporary directory
+mkdir -p tmp
+
+# Create updated Cart.php file with fixed addItem method
+cat > tmp/Cart.php << 'EOF'
 <?php
 
 namespace App\Models;
@@ -165,3 +172,15 @@ class Cart
         ]);
     }
 }
+EOF
+
+# Copy the fixed file to the container
+docker cp tmp/Cart.php phone-store-php-1:/var/www/html/src/Models/Cart.php
+
+# Restart the PHP container
+docker restart phone-store-php-1
+
+# Clean up
+rm -rf tmp
+
+echo "Fixed Cart model's addItem method to include updated_at field." 

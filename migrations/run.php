@@ -40,6 +40,9 @@ function createTables($pdo) {
         email VARCHAR(255) NOT NULL UNIQUE,
         password VARCHAR(255) NOT NULL,
         role ENUM('customer', 'admin') NOT NULL DEFAULT 'customer',
+        name VARCHAR(255) NULL,
+        phone VARCHAR(50) NULL,
+        address TEXT NULL,
         created_at DATETIME NOT NULL,
         updated_at DATETIME NOT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");

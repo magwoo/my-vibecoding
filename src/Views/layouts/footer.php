@@ -43,5 +43,6 @@
     
     <!-- Custom JavaScript -->
     <script src="/js/script.js"></script>
+    <script src="/js/notifications.js"></script>
 </body>
 </html>

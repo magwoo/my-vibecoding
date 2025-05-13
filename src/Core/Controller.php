@@ -47,7 +47,47 @@ abstract class Controller
     
     protected function requireAdmin()
     {
-        if (!$this->isLoggedIn() || $_SESSION["user_role"] !== "admin") {
+        // Check if session exists at all
+        if (!$this->isLoggedIn()) {
+            // Not logged in, redirect to login page
+            header("Location: /login");
+            exit;
+        }
+        
+        // Check if user_role session variable exists
+        if (!isset($_SESSION["user_role"])) {
+            // Try to recover the session from database
+            try {
+                $user = $this->getCurrentUser();
+                if ($user) {
+                    // Update the session with user data
+                    $_SESSION['user_email'] = $user['email'];
+                    $_SESSION['user_role'] = $user['role'];
+                    
+                    // Force write session
+                    session_write_close();
+                    session_start();
+                    
+                    // If still not admin, show error
+                    if ($_SESSION["user_role"] !== "admin") {
+                        header("HTTP/1.1 403 Forbidden");
+                        require_once PUBLIC_DIR . "/errors/403.php";
+                        exit;
+                    }
+                    
+                    // User is admin, continue execution
+                    return;
+                }
+            } catch (Exception $e) {
+                // Any error, show access denied
+                header("HTTP/1.1 403 Forbidden");
+                require_once PUBLIC_DIR . "/errors/403.php";
+                exit;
+            }
+        }
+        
+        // Normal check if user is admin
+        if ($_SESSION["user_role"] !== "admin") {
             header("HTTP/1.1 403 Forbidden");
             require_once PUBLIC_DIR . "/errors/403.php";
             exit;

@@ -61,17 +61,19 @@ class OrderController extends Controller
             
             if (empty($errors)) {
                 try {
+                    // Create order data
+                    $orderData = [
+                        'total' => $cartTotal,
+                        'shipping_address' => $shippingAddress,
+                        'payment_method' => $paymentMethod
+                    ];
+
                     // Create order
                     $orderId = $this->orderModel->createOrder(
                         $user['id'],
-                        $cartItems,
-                        $cartTotal,
-                        $shippingAddress,
-                        $paymentMethod
+                        $cart['id'],
+                        $orderData
                     );
-                    
-                    // Clear cart
-                    $this->cartModel->clearCart($cart['id']);
                     
                     // Redirect to order confirmation
                     $_SESSION['success'] = 'Your order has been placed successfully!';
@@ -83,7 +85,7 @@ class OrderController extends Controller
             }
             
             // If there are errors, redisplay the checkout form with errors
-            $this->view('orders/checkout', [
+            $this->view('checkout/index', [
                 'user' => $user,
                 'cartItems' => $cartItems,
                 'cartTotal' => $cartTotal,
@@ -95,7 +97,7 @@ class OrderController extends Controller
         }
         
         // Display checkout form
-        $this->view('orders/checkout', [
+        $this->view('checkout/index', [
             'user' => $user,
             'cartItems' => $cartItems,
             'cartTotal' => $cartTotal

@@ -1,6 +1,6 @@
 <!-- Products page -->
-<div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-    <h1 class="text-2xl font-bold text-stone-800 mb-4">All Products</h1>
+<div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+    <h1 class="text-3xl font-bold text-slate-900 mb-4">All Products</h1>
     
     <div class="flex items-center justify-between mb-4">
         <!-- Show active filters -->
@@ -83,8 +83,8 @@
 <div class="flex flex-col md:flex-row gap-6">
     <!-- Filters sidebar -->
     <div class="md:w-1/4 lg:w-1/5">
-        <div class="bg-white rounded-lg shadow-sm p-4 sticky top-4">
-            <h2 class="text-lg font-semibold text-stone-800 mb-4">Filters</h2>
+        <div class="bg-white rounded-xl shadow-sm p-6 sticky top-20 border border-slate-100">
+            <h2 class="text-xl font-bold text-slate-900 mb-6">Filters</h2>
             
             <form id="filter-form" action="/products" method="GET">
                 <!-- Preserve current sort option -->
@@ -231,23 +231,34 @@
                 </a>
             </div>
         <?php else: ?>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 <?php foreach($products as $product): ?>
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
-                        <a href="/product/<?= $product['id'] ?>">
-                            <img src="<?= $product['image_url'] ?>" alt="<?= $product['name'] ?>" class="w-full h-48 object-cover">
+                    <div class="group bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-lg transition-all duration-300 border border-slate-100">
+                        <a href="/product/<?= $product['id'] ?>" class="block">
+                            <div class="relative overflow-hidden">
+                                <img 
+                                    src="<?= $product['image_url'] ?>" 
+                                    alt="<?= $product['name'] ?>" 
+                                    class="w-full h-56 object-cover transform group-hover:scale-105 transition-transform duration-300"
+                                >
+                                <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                            </div>
                             <div class="p-4">
-                                <h3 class="text-lg font-semibold text-stone-800 mb-1"><?= $product['name'] ?></h3>
-                                <p class="text-stone-600 text-sm mb-3">
-                                    <?= $product['brand'] ?> • <?= $product['storage'] ?> • <?= $product['os'] ?>
+                                <h3 class="text-lg font-semibold text-slate-900 mb-1 group-hover:text-cyan-600 transition-colors"><?= $product['name'] ?></h3>
+                                <p class="text-slate-500 text-sm mb-3 flex items-center gap-2">
+                                    <span class="font-medium"><?= $product['brand'] ?></span>
+                                    <span class="text-slate-300">•</span>
+                                    <span><?= $product['storage'] ?></span>
+                                    <span class="text-slate-300">•</span>
+                                    <span><?= $product['os'] ?></span>
                                 </p>
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xl font-bold text-stone-800">$<?= number_format($product['price'], 2) ?></span>
+                                    <span class="text-xl font-bold text-slate-900">$<?= number_format($product['price'], 2) ?></span>
                                     <form action="/cart/add" method="POST" class="inline">
                                         <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
                                         <input type="hidden" name="quantity" value="1">
                                         <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
-                                        <button type="submit" class="bg-stone-100 hover:bg-stone-200 text-stone-800 p-2 rounded-full transition">
+                                        <button type="submit" class="bg-cyan-500 hover:bg-cyan-600 text-white p-2 rounded-lg transition-colors">
                                             <i class="fas fa-shopping-cart"></i>
                                         </button>
                                     </form>
@@ -260,10 +271,11 @@
             
             <!-- Pagination -->
             <?php if($totalPages > 1): ?>
-                <div class="flex justify-center mt-8">
-                    <div class="flex space-x-1">
+                <div class="flex justify-center mt-12">
+                    <div class="flex items-center space-x-2">
                         <?php if($currentPage > 1): ?>
-                            <a href="<?= paginationUrl($currentPage - 1) ?>" class="px-4 py-2 bg-white border border-stone-300 rounded-md text-stone-700 hover:bg-stone-50">
+                            <a href="<?= paginationUrl($currentPage - 1) ?>" class="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
+                                <i class="fas fa-chevron-left mr-2 text-sm"></i>
                                 Previous
                             </a>
                         <?php endif; ?>
@@ -271,15 +283,16 @@
                         <?php for($i = max(1, $currentPage - 2); $i <= min($totalPages, $currentPage + 2); $i++): ?>
                             <a 
                                 href="<?= paginationUrl($i) ?>" 
-                                class="px-4 py-2 <?= $i === $currentPage ? 'bg-stone-800 text-white' : 'bg-white text-stone-700 hover:bg-stone-50' ?> border border-stone-300 rounded-md"
+                                class="px-4 py-2 <?= $i === $currentPage ? 'bg-cyan-500 text-white border-cyan-500' : 'bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-slate-200' ?> border rounded-lg transition-colors"
                             >
                                 <?= $i ?>
                             </a>
                         <?php endfor; ?>
                         
                         <?php if($currentPage < $totalPages): ?>
-                            <a href="<?= paginationUrl($currentPage + 1) ?>" class="px-4 py-2 bg-white border border-stone-300 rounded-md text-stone-700 hover:bg-stone-50">
+                            <a href="<?= paginationUrl($currentPage + 1) ?>" class="flex items-center px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
                                 Next
+                                <i class="fas fa-chevron-right ml-2 text-sm"></i>
                             </a>
                         <?php endif; ?>
                     </div>

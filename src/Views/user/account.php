@@ -2,14 +2,20 @@
     <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
         <h1 class="text-2xl font-bold text-stone-800 mb-6">My Account</h1>
         
-        <?php if ($updated): ?>
+        <?php if (isset($updated) && $updated): ?>
             <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
                 <span class="block sm:inline">Your account information has been updated successfully.</span>
             </div>
         <?php endif; ?>
         
+        <?php if (isset($_SESSION["success"]) && $_SESSION["success"]): ?>
+            <div id="success-message" class="hidden"><?= $_SESSION["success"] ?></div>
+            <?php unset($_SESSION["success"]); ?>
+        <?php endif; ?>
+        
         <form action="/account" method="POST">
             <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+            <input type="hidden" name="update_profile" value="1">
             
             <div class="mb-6">
                 <h2 class="text-lg font-semibold text-stone-800 mb-3">Account Information</h2>
@@ -28,7 +34,63 @@
                         <p class="mt-1 text-sm text-red-600"><?= $errors['email'] ?></p>
                     <?php endif; ?>
                 </div>
+                
+                <div class="mb-4">
+                    <label for="name" class="block text-sm font-medium text-stone-700 mb-1">Full Name</label>
+                    <input 
+                        type="text" 
+                        id="name" 
+                        name="name" 
+                        value="<?= isset($user['name']) ? htmlspecialchars($user['name']) : '' ?>"
+                        class="w-full border border-stone-300 rounded-md px-3 py-2 focus:ring-stone-500 focus:border-stone-500"
+                        required
+                    >
+                    <?php if (isset($errors['name'])): ?>
+                        <p class="mt-1 text-sm text-red-600"><?= $errors['name'] ?></p>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="phone" class="block text-sm font-medium text-stone-700 mb-1">Phone Number</label>
+                    <input 
+                        type="tel" 
+                        id="phone" 
+                        name="phone" 
+                        value="<?= isset($user['phone']) ? htmlspecialchars($user['phone']) : '' ?>"
+                        class="w-full border border-stone-300 rounded-md px-3 py-2 focus:ring-stone-500 focus:border-stone-500"
+                        required
+                    >
+                    <?php if (isset($errors['phone'])): ?>
+                        <p class="mt-1 text-sm text-red-600"><?= $errors['phone'] ?></p>
+                    <?php endif; ?>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="address" class="block text-sm font-medium text-stone-700 mb-1">Address</label>
+                    <textarea 
+                        id="address" 
+                        name="address" 
+                        class="w-full border border-stone-300 rounded-md px-3 py-2 focus:ring-stone-500 focus:border-stone-500"
+                        required
+                    ><?= isset($user['address']) ? htmlspecialchars($user['address']) : '' ?></textarea>
+                    <?php if (isset($errors['address'])): ?>
+                        <p class="mt-1 text-sm text-red-600"><?= $errors['address'] ?></p>
+                    <?php endif; ?>
+                </div>
             </div>
+            
+            <div class="flex justify-end">
+                <button type="submit" class="bg-stone-700 hover:bg-stone-800 text-white px-4 py-2 rounded-md">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+        
+        <hr class="my-6 border-t border-stone-200">
+        
+        <form action="/account" method="POST">
+            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+            <input type="hidden" name="change_password" value="1">
             
             <div class="mb-6">
                 <h2 class="text-lg font-semibold text-stone-800 mb-3">Change Password</h2>
@@ -41,6 +103,7 @@
                         id="current_password" 
                         name="current_password" 
                         class="w-full border border-stone-300 rounded-md px-3 py-2 focus:ring-stone-500 focus:border-stone-500"
+                        required
                     >
                     <?php if (isset($errors['current_password'])): ?>
                         <p class="mt-1 text-sm text-red-600"><?= $errors['current_password'] ?></p>
@@ -54,6 +117,7 @@
                         id="new_password" 
                         name="new_password" 
                         class="w-full border border-stone-300 rounded-md px-3 py-2 focus:ring-stone-500 focus:border-stone-500"
+                        required
                     >
                     <p class="mt-1 text-xs text-stone-500">Must be at least 8 characters</p>
                     <?php if (isset($errors['new_password'])): ?>
@@ -68,6 +132,7 @@
                         id="confirm_password" 
                         name="confirm_password" 
                         class="w-full border border-stone-300 rounded-md px-3 py-2 focus:ring-stone-500 focus:border-stone-500"
+                        required
                     >
                     <?php if (isset($errors['confirm_password'])): ?>
                         <p class="mt-1 text-sm text-red-600"><?= $errors['confirm_password'] ?></p>
@@ -77,7 +142,7 @@
             
             <div class="flex justify-end">
                 <button type="submit" class="bg-stone-700 hover:bg-stone-800 text-white px-4 py-2 rounded-md">
-                    Save Changes
+                    Change Password
                 </button>
             </div>
         </form>

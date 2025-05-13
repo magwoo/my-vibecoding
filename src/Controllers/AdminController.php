@@ -30,20 +30,20 @@ class AdminController extends Controller
         $user = $this->getCurrentUser();
         
         // Get counts for dashboard
-        $productCount = $this->productModel->getProductCount();
-        $orderCount = $this->orderModel->getOrderCount();
+        $totalProducts = $this->productModel->getProductCount();
+        $totalOrders = $this->orderModel->getOrderCount();
         $userCount = $this->userModel->getUserCount();
-        $pendingOrderCount = $this->orderModel->getOrderCount('pending');
+        $pendingOrders = $this->orderModel->getOrderCount('pending');
         
         // Get recent orders
         $recentOrders = $this->orderModel->getAllOrders(null, 1, 5);
         
         $this->view('admin/dashboard', [
             'user' => $user,
-            'productCount' => $productCount,
-            'orderCount' => $orderCount,
+            'totalProducts' => $totalProducts,
+            'totalOrders' => $totalOrders,
             'userCount' => $userCount,
-            'pendingOrderCount' => $pendingOrderCount,
+            'pendingOrders' => $pendingOrders,
             'recentOrders' => $recentOrders
         ]);
     }

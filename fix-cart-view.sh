@@ -1,3 +1,10 @@
+#!/bin/bash
+
+# Create temporary directory
+mkdir -p tmp
+
+# Create updated cart/index.php file
+cat > tmp/index.php << 'EOF'
 <h1 class="text-2xl font-bold mb-6">Shopping Cart</h1>
 
 <?php if (empty($cartItems)): ?>
@@ -39,18 +46,15 @@
                                 </td>
                                 <td class="py-4 text-center">$<?= number_format($item["price"], 2) ?></td>
                                 <td class="py-4">
-                                    <form action="/cart/update" method="POST" class="flex justify-center" id="form-<?= $item["id"] ?>">
+                                    <form action="/cart/update" method="POST" class="flex justify-center">
                                         <input type="hidden" name="csrf_token" value="<?= $_SESSION["csrf_token"] ?>">
                                         <input type="hidden" name="item_id" value="<?= $item["id"] ?>">
                                         <div class="flex items-center">
-                                            <button type="button" class="quantity-btn px-2 py-1 border rounded-l bg-gray-100 hover:bg-gray-200" 
-                                                onclick="updateQuantity(<?= $item['id'] ?>, -1)">-</button>
-                                            <input type="number" name="quantity" value="<?= $item["quantity"] ?>" min="1" 
-                                                class="w-12 py-1 text-center border-t border-b" id="quantity-<?= $item["id"] ?>"
-                                                onchange="document.getElementById('form-<?= $item["id"] ?>').submit()">
-                                            <button type="button" class="quantity-btn px-2 py-1 border rounded-r bg-gray-100 hover:bg-gray-200"
-                                                onclick="updateQuantity(<?= $item['id'] ?>, 1)">+</button>
+                                            <button type="button" class="quantity-btn quantity-decrease px-2 py-1 border rounded-l bg-gray-100 hover:bg-gray-200">-</button>
+                                            <input type="number" name="quantity" value="<?= $item["quantity"] ?>" min="1" class="w-12 py-1 text-center border-t border-b">
+                                            <button type="button" class="quantity-btn quantity-increase px-2 py-1 border rounded-r bg-gray-100 hover:bg-gray-200">+</button>
                                         </div>
+                                        <button type="submit" class="ml-2 text-xs text-primary hover:text-green-700">Update</button>
                                     </form>
                                 </td>
                                 <td class="py-4 text-right">$<?= number_format($item["price"] * $item["quantity"], 2) ?></td>
@@ -103,17 +107,35 @@
     </div>
     
     <script>
-        function updateQuantity(itemId, change) {
-            const input = document.getElementById('quantity-' + itemId);
-            const currentValue = parseInt(input.value, 10);
-            const newValue = currentValue + change;
-            
-            // Ensure quantity is at least 1
-            if (newValue >= 1) {
-                input.value = newValue;
-                // Submit the form automatically
-                document.getElementById('form-' + itemId).submit();
-            }
-        }
+        // Quantity button handlers
+        document.querySelectorAll('.quantity-decrease').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.parentNode.querySelector('input');
+                const value = parseInt(input.value, 10);
+                if (value > 1) {
+                    input.value = value - 1;
+                }
+            });
+        });
+        
+        document.querySelectorAll('.quantity-increase').forEach(button => {
+            button.addEventListener('click', function() {
+                const input = this.parentNode.querySelector('input');
+                const value = parseInt(input.value, 10);
+                input.value = value + 1;
+            });
+        });
     </script>
 <?php endif; ?>
+EOF
+
+# Copy the fixed file to the container
+docker cp tmp/index.php phone-store-php-1:/var/www/html/src/Views/cart/index.php
+
+# Restart the PHP container
+docker restart phone-store-php-1
+
+# Clean up
+rm -rf tmp
+
+echo "Fixed cart view to use \$cartTotal instead of \$total for Order Summary." 

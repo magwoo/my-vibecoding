@@ -49,20 +49,34 @@ class AuthController extends Controller
                 if (!$user || !$this->userModel->verifyPassword($user, $password)) {
                     $errors['login'] = 'Invalid email or password';
                 } else {
-                    // Login successful
+                    // Ensure there's a clean session
+                    session_regenerate_id(true);
+                    
+                    // Login successful - set session variables
                     $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['user_email'] = $user['email'];
-                    $_SESSION['user_role'] = $user['role'];
+                    $_SESSION['email'] = $user['email'];
+                    $_SESSION['username'] = $user['username'] ?? null;
+                    $_SESSION['is_admin'] = $user['role'] === 'admin';
                     
                     // Initialize cart for the logged-in user
                     $this->cartModel->initCart($user['id']);
                     
-                    // Redirect based on role
-                    if ($user['role'] === 'admin') {
-                        Router::redirect('admin');
-                    } else {
-                        Router::redirect('');
+                    // Force session write
+                    session_write_close();
+                    session_start();
+                    
+                    // Debug output - only in development
+                    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+                        echo "<pre>User logged in: ";
+                        print_r($user);
+                        echo "<br>Session data: ";
+                        print_r($_SESSION);
+                        echo "</pre>";
+                        exit;
                     }
+                    
+                    // Redirect to home first
+                    Router::redirect('');
                     
                     return;
                 }
@@ -116,11 +130,17 @@ class AuthController extends Controller
                 $userId = $this->userModel->register($email, $password);
                 
                 if ($userId) {
-                    // Login user
+                    // Login user - ensure clean session
+                    session_regenerate_id(true);
+                    
                     $user = $this->userModel->find($userId);
                     $_SESSION['user_id'] = $user['id'];
                     $_SESSION['user_email'] = $user['email'];
                     $_SESSION['user_role'] = $user['role'];
+                    
+                    // Force session write
+                    session_write_close();
+                    session_start();
                     
                     // Initialize cart for the new user
                     $this->cartModel->initCart($user['id']);

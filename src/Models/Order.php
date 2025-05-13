@@ -42,13 +42,10 @@ class Order
             // Create order
             $orderId = $this->db->insert("orders", [
                 "user_id" => $userId,
-                "total" => $data["total"],
+                "total_amount" => $data['total'],
                 "status" => "pending",
-                "shipping_address" => $data["shipping_address"],
-                "shipping_city" => $data["shipping_city"],
-                "shipping_country" => $data["shipping_country"],
-                "shipping_zip" => $data["shipping_zip"],
-                "payment_method" => $data["payment_method"],
+                "shipping_address" => $data['shipping_address'],
+                "payment_method" => $data['payment_method'],
                 "created_at" => date("Y-m-d H:i:s"),
                 "updated_at" => date("Y-m-d H:i:s")
             ]);
@@ -61,23 +58,72 @@ class Order
             foreach ($cartItems as $item) {
                 $this->db->insert("order_items", [
                     "order_id" => $orderId,
-                    "product_id" => $item["product_id"],
-                    "price" => $item["price"],
-                    "quantity" => $item["quantity"],
-                    "created_at" => date("Y-m-d H:i:s")
+                    "product_id" => $item['product_id'],
+                    "quantity" => $item['quantity'],
+                    "price" => $item['price']
                 ]);
+                
+                // Update product stock
+                $this->db->query(
+                    "UPDATE products SET stock = stock - ? WHERE id = ?",
+                    [$item['quantity'], $item['product_id']]
+                );
             }
             
-            // Clear cart
+            // Clear the cart
             $cartModel->clearCart($cartId);
             
             $this->db->commit();
             return $orderId;
-            
         } catch (\Exception $e) {
             $this->db->rollback();
             throw $e;
         }
+    }
+
+    public function getOrderCount($status = null)
+    {
+        $sql = "SELECT COUNT(*) as count FROM orders";
+        $params = [];
+        
+        if ($status) {
+            $sql .= " WHERE status = ?";
+            $params[] = $status;
+        }
+        
+        $stmt = $this->db->query($sql, $params);
+        $result = $stmt->fetch();
+        return $result['count'];
+    }
+
+    public function getAllOrders($status = null, $page = 1, $limit = 10)
+    {
+        $offset = ($page - 1) * $limit;
+        $params = [];
+        
+        $sql = "SELECT o.*, u.email as user_email 
+               FROM orders o 
+               LEFT JOIN users u ON o.user_id = u.id";
+        
+        if ($status) {
+            $sql .= " WHERE o.status = ?";
+            $params[] = $status;
+        }
+        
+        $sql .= " ORDER BY o.created_at DESC LIMIT ? OFFSET ?";
+        $params[] = $limit;
+        $params[] = $offset;
+        
+        $stmt = $this->db->query($sql, $params);
+        $orders = $stmt->fetchAll();
+        
+        // Get items for each order
+        foreach ($orders as &$order) {
+            $order['items'] = $this->getOrderItems($order['id']);
+            $order['total_items'] = array_sum(array_column($order['items'], 'quantity'));
+        }
+        
+        return $orders;
     }
     
     public function updateStatus($orderId, $status)

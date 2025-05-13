@@ -1,3 +1,10 @@
+#!/bin/bash
+
+# Create temporary directory
+mkdir -p tmp
+
+# Create updated cart/index.php file with fixed quantity update functionality
+cat > tmp/index.php << 'EOF'
 <h1 class="text-2xl font-bold mb-6">Shopping Cart</h1>
 
 <?php if (empty($cartItems)): ?>
@@ -117,3 +124,15 @@
         }
     </script>
 <?php endif; ?>
+EOF
+
+# Copy the fixed file to the container
+docker cp tmp/index.php phone-store-php-1:/var/www/html/src/Views/cart/index.php
+
+# Restart the PHP container
+docker restart phone-store-php-1
+
+# Clean up
+rm -rf tmp
+
+echo "Fixed cart quantity update functionality to work automatically when clicking +/- buttons." 

@@ -1,3 +1,10 @@
+#!/bin/bash
+
+# Create temporary directory
+mkdir -p tmp
+
+# Create updated CartController.php file
+cat > tmp/CartController.php << 'EOF'
 <?php
 
 namespace App\Controllers;
@@ -97,7 +104,7 @@ class CartController extends Controller
     public function update()
     {
         if (!$this->isLoggedIn()) {
-            $_SESSION['error'] = 'You must be logged in to update your cart';
+            $_SESSION['error'] = 'You must be logged in to update cart';
             Router::redirect('login');
             return;
         }
@@ -110,8 +117,8 @@ class CartController extends Controller
         $itemId = isset($_POST['item_id']) ? (int)$_POST['item_id'] : 0;
         $quantity = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 0;
         
-        if ($itemId <= 0) {
-            $_SESSION['error'] = 'Invalid cart item';
+        if ($itemId <= 0 || $quantity <= 0) {
+            $_SESSION['error'] = 'Invalid cart item or quantity';
             Router::redirect('cart');
             return;
         }
@@ -128,7 +135,7 @@ class CartController extends Controller
     public function remove()
     {
         if (!$this->isLoggedIn()) {
-            $_SESSION['error'] = 'You must be logged in to remove items from your cart';
+            $_SESSION['error'] = 'You must be logged in to remove items';
             Router::redirect('login');
             return;
         }
@@ -163,3 +170,15 @@ class CartController extends Controller
         exit;
     }
 }
+EOF
+
+# Copy the fixed file to the container
+docker cp tmp/CartController.php phone-store-php-1:/var/www/html/src/Controllers/CartController.php
+
+# Restart the PHP container
+docker restart phone-store-php-1
+
+# Clean up
+rm -rf tmp
+
+echo "Fixed CartController to redirect back to the cart page after updating cart items." 
