@@ -1,49 +1,18 @@
 <?php
 
-namespace App\Controllers;
+namespace Controllers;
 
-use App\Core\Controller;
-use App\Models\Product;
+use Models\Product;
 
-class HomeController extends Controller
-{
-    private $productModel;
-    
-    public function __construct()
-    {
-        parent::__construct();
-        $this->productModel = new Product();
-    }
-    
-    public function index()
-    {
-        try {
-            $featuredProducts = $this->productModel->getFeaturedProducts(8);
-        } catch (\Exception $e) {
-            error_log($e->getMessage());
-            $featuredProducts = [];
-        }
+class HomeController extends Controller {
+    public function index() {
+        // Получаем несколько новых товаров для отображения на главной странице
+        $productModel = new Product();
+        $featuredProducts = $productModel->getAll(6, 0, [], 'newest');
         
-        try {
-            $latestProducts = $this->productModel->getProducts([], "created_at DESC", 1, 8);
-        } catch (\Exception $e) {
-            error_log($e->getMessage());
-            $latestProducts = [];
-        }
-        
-        try {
-            $brands = $this->productModel->getAllBrands();
-        } catch (\Exception $e) {
-            error_log($e->getMessage());
-            $brands = [];
-        }
-        
-        $this->view("home/index", [
-            "title" => "Welcome",
-            "featuredProducts" => $featuredProducts,
-            "latestProducts" => $latestProducts,
-            "brands" => $brands,
-            "user" => $this->getCurrentUser()
+        $this->render('home/index', [
+            'title' => 'Интернет-магазин телефонов',
+            'featuredProducts' => $featuredProducts
         ]);
     }
-} 
+}

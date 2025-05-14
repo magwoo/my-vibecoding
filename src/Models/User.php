@@ -1,117 +1,79 @@
 <?php
-namespace App\Models;
 
-use App\Core\Database;
+namespace Models;
 
-class User
-{
+use Utils\Database;
+
+class User {
     private $db;
     
-    public function __construct()
-    {
+    public function __construct() {
         $this->db = Database::getInstance();
     }
     
-    public function find($id)
-    {
-        return $this->db->find("users", $id);
+    // Получить пользователя по ID
+    public function getById($id) {
+        $sql = "SELECT id, email, created_at FROM users WHERE id = ?";
+        return $this->db->fetch($sql, [$id]);
     }
     
-    public function findByEmail($email)
-    {
-        $sql = "SELECT * FROM users WHERE email = ?";
-        $stmt = $this->db->query($sql, [$email]);
-        return $stmt->fetch();
+    // Получить пользователя по Email
+    public function getByEmail($email) {
+        $sql = "SELECT id, email, password_hash, created_at FROM users WHERE email = ?";
+        return $this->db->fetch($sql, [$email]);
     }
     
-    public function create($data)
-    {
-        return $this->db->insert("users", $data);
-    }
-    
-    public function update($id, $data)
-    {
-        return $this->db->update("users", $id, $data);
-    }
-    
-    public function delete($id)
-    {
-        return $this->db->delete("users", $id);
-    }
-    
-    public function register($email, $password)
-    {
-        // Hash password
-        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-        
-        // Insert user
-        return $this->db->insert("users", [
-            "email" => $email,
-            "password" => $passwordHash,
-            "role" => "customer",
-            "created_at" => date("Y-m-d H:i:s"),
-            "updated_at" => date("Y-m-d H:i:s")
-        ]);
-    }
-    
-    public function verifyPassword($user, $password)
-    {
-        return password_verify($password, $user["password"]);
-    }
-    
-    public function updateProfile($userId, $data)
-    {
-        // Only allow updating specific fields
-        $allowedFields = [
-            "name",
-            "phone",
-            "address"
-        ];
-        
-        $updateData = [];
-        foreach ($allowedFields as $field) {
-            if (isset($data[$field])) {
-                $updateData[$field] = $data[$field];
-            }
+    // Создать нового пользователя
+    public function create($email, $password) {
+        // Проверяем, не существует ли уже пользователь с таким email
+        if ($this->getByEmail($email)) {
+            return false;
         }
         
-        if (!empty($updateData)) {
-            $updateData["updated_at"] = date("Y-m-d H:i:s");
-            return $this->db->update("users", $userId, $updateData);
+        $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+        
+        $sql = "INSERT INTO users (email, password_hash) VALUES (?, ?)";
+        $this->db->query($sql, [$email, $passwordHash]);
+        
+        return $this->db->lastInsertId();
+    }
+    
+    // Проверка правильности пароля
+    public function verifyPassword($email, $password) {
+        $user = $this->getByEmail($email);
+        
+        if (!$user) {
+            return false;
         }
         
-        return false;
+        return password_verify($password, $user['password_hash']);
     }
     
-    public function changePassword($userId, $newPassword)
-    {
-        // Hash new password
-        $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
+    // Обновить данные пользователя
+    public function update($id, $data) {
+        $sets = [];
+        $params = [];
         
-        return $this->db->update("users", $userId, [
-            "password" => $passwordHash,
-            "updated_at" => date("Y-m-d H:i:s")
-        ]);
-    }
-    
-    public function getAllUsers($page = 1, $perPage = 20)
-    {
-        $offset = ($page - 1) * $perPage;
+        // Собираем поля для обновления
+        if (isset($data['email'])) {
+            $sets[] = "email = ?";
+            $params[] = $data['email'];
+        }
         
-        $sql = "
-            SELECT id, email, name, role, created_at, updated_at
-            FROM users
-            ORDER BY created_at DESC
-            LIMIT ? OFFSET ?
-        ";
+        if (isset($data['password'])) {
+            $sets[] = "password_hash = ?";
+            $params[] = password_hash($data['password'], PASSWORD_BCRYPT);
+        }
         
-        return $this->db->query($sql, [$perPage, $offset])->fetchAll();
-    }
-    
-    public function getUserCount()
-    {
-        $sql = "SELECT COUNT(*) as count FROM users";
-        $result = $this->db->query($sql)->fetch();
-        return $result ? (int)$result["count"] : 0;
+        if (empty($sets)) {
+            return false;
+        }
+        
+        // Добавляем ID в конец массива параметров
+        $params[] = $id;
+        
+        $sql = "UPDATE users SET " . implode(", ", $sets) . " WHERE id = ?";
+        
+        return $this->db->query($sql, $params)->rowCount() > 0;
     }
 }

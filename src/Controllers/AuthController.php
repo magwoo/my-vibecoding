@@ -1,176 +1,194 @@
 <?php
 
-namespace App\Controllers;
+namespace Controllers;
 
-use App\Core\Controller;
-use App\Core\Router;
-use App\Models\User;
-use App\Models\Cart;
+use Models\User;
+use Models\Cart;
 
-class AuthController extends Controller
-{
+class AuthController extends Controller {
     private $userModel;
-    private $cartModel;
     
-    public function __construct()
-    {
-        parent::__construct();
+    public function __construct() {
         $this->userModel = new User();
-        $this->cartModel = new Cart();
     }
     
-    public function login()
-    {
-        // If user is already logged in, redirect to home
+    // Форма входа
+    public function loginForm() {
+        // Перенаправляем авторизованного пользователя на главную страницу
         if ($this->isLoggedIn()) {
-            Router::redirect('');
-            return;
+            $this->redirect('/');
         }
         
-        $errors = [];
-        
-        // Handle login form submission
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $email = trim($_POST['email'] ?? '');
-            $password = $_POST['password'] ?? '';
-            
-            // Validate input
-            $rules = [
-                'email' => 'required|email',
-                'password' => 'required'
-            ];
-            
-            $errors = $this->validateInput($_POST, $rules);
-            
-            if (empty($errors)) {
-                // Check if user exists
-                $user = $this->userModel->findByEmail($email);
-                
-                if (!$user || !$this->userModel->verifyPassword($user, $password)) {
-                    $errors['login'] = 'Invalid email or password';
-                } else {
-                    // Ensure there's a clean session
-                    session_regenerate_id(true);
-                    
-                    // Login successful - set session variables
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['email'] = $user['email'];
-                    $_SESSION['username'] = $user['username'] ?? null;
-                    $_SESSION['is_admin'] = $user['role'] === 'admin';
-                    
-                    // Initialize cart for the logged-in user
-                    $this->cartModel->initCart($user['id']);
-                    
-                    // Force session write
-                    session_write_close();
-                    session_start();
-                    
-                    // Debug output - only in development
-                    if (defined('DEBUG_MODE') && DEBUG_MODE) {
-                        echo "<pre>User logged in: ";
-                        print_r($user);
-                        echo "<br>Session data: ";
-                        print_r($_SESSION);
-                        echo "</pre>";
-                        exit;
-                    }
-                    
-                    // Redirect to home first
-                    Router::redirect('');
-                    
-                    return;
-                }
-            }
-        }
-        
-        // Display login form
-        $this->view('auth/login', [
-            'errors' => $errors,
-            'email' => $email ?? '',
+        $this->render('auth/login', [
+            'title' => 'Вход в аккаунт'
         ]);
     }
     
-    public function register()
-    {
-        // If user is already logged in, redirect to home
+    // Обработка входа
+    public function login() {
+        // Проверка CSRF-токена
+        $this->validateCsrfToken();
+        
+        // Перенаправляем авторизованного пользователя на главную страницу
         if ($this->isLoggedIn()) {
-            Router::redirect('');
-            return;
+            $this->redirect('/');
         }
         
-        $errors = [];
+        $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+        $password = isset($_POST['password']) ? $_POST['password'] : '';
         
-        // Handle registration form submission
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $email = trim($_POST['email'] ?? '');
-            $password = $_POST['password'] ?? '';
-            $confirmPassword = $_POST['confirm_password'] ?? '';
+        // Проверка наличия обязательных полей
+        if (empty($email) || empty($password)) {
+            $_SESSION['flash_message'] = [
+                'type' => 'error',
+                'message' => 'Все поля обязательны для заполнения'
+            ];
+            $this->redirect('/login');
+        }
+        
+        // Проверка правильности учетных данных
+        if ($this->userModel->verifyPassword($email, $password)) {
+            $user = $this->userModel->getByEmail($email);
             
-            // Validate input
-            $rules = [
-                'email' => 'required|email',
-                'password' => 'required|min:8',
-                'confirm_password' => 'required'
+            // Сохраняем ID пользователя в сессии
+            $_SESSION['user_id'] = $user['id'];
+            
+            // Перенос товаров из гостевой корзины в корзину пользователя
+            $cartModel = new Cart();
+            $cartModel->migrateGuestCart($user['id']);
+            
+            $_SESSION['flash_message'] = [
+                'type' => 'success',
+                'message' => 'Вы успешно вошли в систему'
             ];
             
-            $errors = $this->validateInput($_POST, $rules);
+            // Перенаправление на страницу, с которой пользователь пришел, или на главную
+            $redirect = isset($_SESSION['redirect_after_login']) ? $_SESSION['redirect_after_login'] : '/';
+            unset($_SESSION['redirect_after_login']);
             
-            // Additional validation
-            if ($password !== $confirmPassword) {
-                $errors['confirm_password'] = 'Password confirmation does not match';
-            }
-            
-            // Check if email already exists
-            if (empty($errors['email']) && $this->userModel->findByEmail($email)) {
-                $errors['email'] = 'Email is already taken';
-            }
-            
-            if (empty($errors)) {
-                // Register user
-                $userId = $this->userModel->register($email, $password);
-                
-                if ($userId) {
-                    // Login user - ensure clean session
-                    session_regenerate_id(true);
-                    
-                    $user = $this->userModel->find($userId);
-                    $_SESSION['user_id'] = $user['id'];
-                    $_SESSION['user_email'] = $user['email'];
-                    $_SESSION['user_role'] = $user['role'];
-                    
-                    // Force session write
-                    session_write_close();
-                    session_start();
-                    
-                    // Initialize cart for the new user
-                    $this->cartModel->initCart($user['id']);
-                    
-                    // Redirect to home
-                    Router::redirect('');
-                    return;
-                } else {
-                    $errors['register'] = 'Registration failed';
-                }
-            }
+            $this->redirect($redirect);
+        } else {
+            $_SESSION['flash_message'] = [
+                'type' => 'error',
+                'message' => 'Неверный email или пароль'
+            ];
+            $this->redirect('/login');
+        }
+    }
+    
+    // Форма регистрации
+    public function registerForm() {
+        // Перенаправляем авторизованного пользователя на главную страницу
+        if ($this->isLoggedIn()) {
+            $this->redirect('/');
         }
         
-        // Display registration form
-        $this->view('auth/register', [
-            'errors' => $errors,
-            'email' => $email ?? '',
+        $this->render('auth/register', [
+            'title' => 'Регистрация'
         ]);
     }
     
-    public function logout()
-    {
-        // Clear session
-        session_unset();
-        session_destroy();
+    // Обработка регистрации
+    public function register() {
+        // Проверка CSRF-токена
+        $this->validateCsrfToken();
         
-        // Start a new session for the guest
-        session_start();
+        // Перенаправляем авторизованного пользователя на главную страницу
+        if ($this->isLoggedIn()) {
+            $this->redirect('/');
+        }
         
-        // Redirect to home
-        Router::redirect('');
+        $email = isset($_POST['email']) ? trim($_POST['email']) : '';
+        $password = isset($_POST['password']) ? $_POST['password'] : '';
+        $passwordConfirm = isset($_POST['password_confirm']) ? $_POST['password_confirm'] : '';
+        
+        // Проверка наличия обязательных полей
+        if (empty($email) || empty($password) || empty($passwordConfirm)) {
+            $_SESSION['flash_message'] = [
+                'type' => 'error',
+                'message' => 'Все поля обязательны для заполнения'
+            ];
+            $this->redirect('/register');
+        }
+        
+        // Проверка валидности email
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $_SESSION['flash_message'] = [
+                'type' => 'error',
+                'message' => 'Укажите корректный email'
+            ];
+            $this->redirect('/register');
+        }
+        
+        // Проверка длины пароля
+        if (strlen($password) < 8) {
+            $_SESSION['flash_message'] = [
+                'type' => 'error',
+                'message' => 'Пароль должен содержать минимум 8 символов'
+            ];
+            $this->redirect('/register');
+        }
+        
+        // Проверка совпадения паролей
+        if ($password !== $passwordConfirm) {
+            $_SESSION['flash_message'] = [
+                'type' => 'error',
+                'message' => 'Пароли не совпадают'
+            ];
+            $this->redirect('/register');
+        }
+        
+        // Проверка уникальности email
+        if ($this->userModel->getByEmail($email)) {
+            $_SESSION['flash_message'] = [
+                'type' => 'error',
+                'message' => 'Пользователь с таким email уже существует'
+            ];
+            $this->redirect('/register');
+        }
+        
+        // Создаем нового пользователя
+        $userId = $this->userModel->create($email, $password);
+        
+        if ($userId) {
+            // Сохраняем ID пользователя в сессии
+            $_SESSION['user_id'] = $userId;
+            
+            // Перенос товаров из гостевой корзины в корзину пользователя
+            $cartModel = new Cart();
+            $cartModel->migrateGuestCart($userId);
+            
+            $_SESSION['flash_message'] = [
+                'type' => 'success',
+                'message' => 'Вы успешно зарегистрировались'
+            ];
+            
+            // Перенаправление на страницу, с которой пользователь пришел, или на главную
+            $redirect = isset($_SESSION['redirect_after_login']) ? $_SESSION['redirect_after_login'] : '/';
+            unset($_SESSION['redirect_after_login']);
+            
+            $this->redirect($redirect);
+        } else {
+            $_SESSION['flash_message'] = [
+                'type' => 'error',
+                'message' => 'Ошибка при регистрации. Пожалуйста, попробуйте позже.'
+            ];
+            $this->redirect('/register');
+        }
     }
-} 
+    
+    // Выход из системы
+    public function logout() {
+        if (isset($_SESSION['user_id'])) {
+            // Удаляем ID пользователя из сессии
+            unset($_SESSION['user_id']);
+            
+            $_SESSION['flash_message'] = [
+                'type' => 'success',
+                'message' => 'Вы успешно вышли из системы'
+            ];
+        }
+        
+        $this->redirect('/');
+    }
+}

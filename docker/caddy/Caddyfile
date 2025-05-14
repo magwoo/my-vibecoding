@@ -1,12 +1,12 @@
-{
-    auto_https off
-    http_port 80
-    https_port 443
-}
-
-http://localhost {
+:80 {
     root * /var/www/html/public
     php_fastcgi php:9000
     encode gzip
     file_server
+
+    @notFound {
+        not path /uploads/* /assets/* /favicon.ico
+        not file
+    }
+    rewrite @notFound /index.php?{query}
 }

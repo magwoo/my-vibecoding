@@ -1,136 +1,170 @@
 <?php
 
-namespace App\Models;
+namespace Models;
 
-use App\Core\Database;
+use Utils\Database;
 
-class Order
-{
+class Order {
     private $db;
     
-    public function __construct()
-    {
+    public function __construct() {
         $this->db = Database::getInstance();
     }
     
-    public function find($id)
-    {
-        return $this->db->find("orders", $id);
+    // Получить заказ по ID
+    public function getById($id) {
+        $sql = "SELECT * FROM orders WHERE id = ?";
+        return $this->db->fetch($sql, [$id]);
     }
     
-    public function getUserOrders($userId)
-    {
+    // Получить все заказы пользователя
+    public function getByUserId($userId) {
         $sql = "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC";
-        $stmt = $this->db->query($sql, [$userId]);
-        return $stmt->fetchAll();
+        return $this->db->fetchAll($sql, [$userId]);
     }
     
-    public function getOrderItems($orderId)
-    {
-        $sql = "SELECT oi.*, p.name, p.image_url FROM order_items oi 
-                JOIN products p ON oi.product_id = p.id
-                WHERE oi.order_id = ?";
-        $stmt = $this->db->query($sql, [$orderId]);
-        return $stmt->fetchAll();
+    // Получить все заказы (для админа)
+    public function getAll($limit = null, $offset = 0, $filters = []) {
+        $sql = "SELECT o.*, u.email as user_email FROM orders o
+                JOIN users u ON o.user_id = u.id
+                WHERE 1=1";
+        $params = [];
+        
+        // Применяем фильтры
+        if (!empty($filters)) {
+            // Фильтр по статусу
+            if (!empty($filters['status'])) {
+                $sql .= " AND o.status = ?";
+                $params[] = $filters['status'];
+            }
+            
+            // Фильтр по ID пользователя
+            if (!empty($filters['user_id'])) {
+                $sql .= " AND o.user_id = ?";
+                $params[] = $filters['user_id'];
+            }
+            
+            // Фильтр по дате (от)
+            if (!empty($filters['date_from'])) {
+                $sql .= " AND DATE(o.created_at) >= ?";
+                $params[] = $filters['date_from'];
+            }
+            
+            // Фильтр по дате (до)
+            if (!empty($filters['date_to'])) {
+                $sql .= " AND DATE(o.created_at) <= ?";
+                $params[] = $filters['date_to'];
+            }
+        }
+        
+        // Сортировка по дате (новые сначала)
+        $sql .= " ORDER BY o.created_at DESC";
+        
+        // Применяем ограничение выборки
+        if ($limit !== null) {
+            $sql .= " LIMIT ?, ?";
+            $params[] = (int)$offset;
+            $params[] = (int)$limit;
+        }
+        
+        return $this->db->fetchAll($sql, $params);
     }
     
-    public function createOrder($userId, $cartId, $data)
-    {
+    // Получить количество заказов
+    public function countAll($filters = []) {
+        $sql = "SELECT COUNT(*) as count FROM orders WHERE 1=1";
+        $params = [];
+        
+        // Применяем фильтры
+        if (!empty($filters)) {
+            // Фильтр по статусу
+            if (!empty($filters['status'])) {
+                $sql .= " AND status = ?";
+                $params[] = $filters['status'];
+            }
+            
+            // Фильтр по ID пользователя
+            if (!empty($filters['user_id'])) {
+                $sql .= " AND user_id = ?";
+                $params[] = $filters['user_id'];
+            }
+            
+            // Фильтр по дате (от)
+            if (!empty($filters['date_from'])) {
+                $sql .= " AND DATE(created_at) >= ?";
+                $params[] = $filters['date_from'];
+            }
+            
+            // Фильтр по дате (до)
+            if (!empty($filters['date_to'])) {
+                $sql .= " AND DATE(created_at) <= ?";
+                $params[] = $filters['date_to'];
+            }
+        }
+        
+        $result = $this->db->fetch($sql, $params);
+        return $result['count'];
+    }
+    
+    // Создать новый заказ
+    public function create($userId, $totalAmount) {
         $this->db->beginTransaction();
         
         try {
-            // Create order
-            $orderId = $this->db->insert("orders", [
-                "user_id" => $userId,
-                "total_amount" => $data['total'],
-                "status" => "pending",
-                "shipping_address" => $data['shipping_address'],
-                "payment_method" => $data['payment_method'],
-                "created_at" => date("Y-m-d H:i:s"),
-                "updated_at" => date("Y-m-d H:i:s")
-            ]);
+            // Создаем заказ
+            $sql = "INSERT INTO orders (user_id, total_amount) VALUES (?, ?)";
+            $this->db->query($sql, [$userId, $totalAmount]);
+            $orderId = $this->db->lastInsertId();
             
-            // Get cart items
+            // Получаем товары из корзины пользователя
             $cartModel = new Cart();
-            $cartItems = $cartModel->getCartItems($cartId);
+            $cartItems = $cartModel->getItems();
             
-            // Add order items
+            // Добавляем товары в заказ
             foreach ($cartItems as $item) {
-                $this->db->insert("order_items", [
-                    "order_id" => $orderId,
-                    "product_id" => $item['product_id'],
-                    "quantity" => $item['quantity'],
-                    "price" => $item['price']
+                $sql = "INSERT INTO order_items (order_id, product_id, quantity, price) 
+                        VALUES (?, ?, ?, ?)";
+                $this->db->query($sql, [
+                    $orderId,
+                    $item['product_id'],
+                    $item['quantity'],
+                    $item['price']
                 ]);
-                
-                // Update product stock
-                $this->db->query(
-                    "UPDATE products SET stock = stock - ? WHERE id = ?",
-                    [$item['quantity'], $item['product_id']]
-                );
             }
             
-            // Clear the cart
-            $cartModel->clearCart($cartId);
+            // Очищаем корзину пользователя
+            $cartModel->clear();
             
+            // Фиксируем транзакцию
             $this->db->commit();
+            
             return $orderId;
         } catch (\Exception $e) {
+            // В случае ошибки отменяем транзакцию
             $this->db->rollback();
-            throw $e;
+            return false;
         }
-    }
-
-    public function getOrderCount($status = null)
-    {
-        $sql = "SELECT COUNT(*) as count FROM orders";
-        $params = [];
-        
-        if ($status) {
-            $sql .= " WHERE status = ?";
-            $params[] = $status;
-        }
-        
-        $stmt = $this->db->query($sql, $params);
-        $result = $stmt->fetch();
-        return $result['count'];
-    }
-
-    public function getAllOrders($status = null, $page = 1, $limit = 10)
-    {
-        $offset = ($page - 1) * $limit;
-        $params = [];
-        
-        $sql = "SELECT o.*, u.email as user_email 
-               FROM orders o 
-               LEFT JOIN users u ON o.user_id = u.id";
-        
-        if ($status) {
-            $sql .= " WHERE o.status = ?";
-            $params[] = $status;
-        }
-        
-        $sql .= " ORDER BY o.created_at DESC LIMIT ? OFFSET ?";
-        $params[] = $limit;
-        $params[] = $offset;
-        
-        $stmt = $this->db->query($sql, $params);
-        $orders = $stmt->fetchAll();
-        
-        // Get items for each order
-        foreach ($orders as &$order) {
-            $order['items'] = $this->getOrderItems($order['id']);
-            $order['total_items'] = array_sum(array_column($order['items'], 'quantity'));
-        }
-        
-        return $orders;
     }
     
-    public function updateStatus($orderId, $status)
-    {
-        return $this->db->update("orders", $orderId, [
-            "status" => $status,
-            "updated_at" => date("Y-m-d H:i:s")
-        ]);
+    // Обновить статус заказа
+    public function updateStatus($orderId, $status) {
+        $allowedStatuses = ['в обработке', 'оплачен', 'отправлен', 'доставлен', 'отменен'];
+        
+        if (!in_array($status, $allowedStatuses)) {
+            return false;
+        }
+        
+        $sql = "UPDATE orders SET status = ? WHERE id = ?";
+        return $this->db->query($sql, [$status, $orderId])->rowCount() > 0;
+    }
+    
+    // Получить элементы заказа
+    public function getOrderItems($orderId) {
+        $sql = "SELECT oi.*, p.name, p.brand, p.image_path
+                FROM order_items oi
+                JOIN products p ON oi.product_id = p.id
+                WHERE oi.order_id = ?";
+        
+        return $this->db->fetchAll($sql, [$orderId]);
     }
 }

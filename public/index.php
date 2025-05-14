@@ -1,18 +1,26 @@
-<?php 
-ini_set("display_errors", 1);
-ini_set("display_startup_errors", 1);
-error_reporting(E_ALL);
+<?php
+session_start();
 
-require_once __DIR__ . "/../src/bootstrap.php"; 
+// Определяем корневой путь приложения
+define('ROOT_PATH', dirname(__DIR__));
 
-$path = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH); 
-$path = trim($path, "/"); 
-$path = empty($path) ? "home" : $path; 
+// Автозагрузка классов
+spl_autoload_register(function ($class) {
+    $class = str_replace('\\', DIRECTORY_SEPARATOR, $class);
+    $path = ROOT_PATH . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . $class . '.php';
+    if (file_exists($path)) {
+        require_once $path;
+    }
+});
 
-try { 
-    $router = new \App\Core\Router(); 
-    $router->dispatch($path); 
-} catch (\Exception $e) { 
-    error_log($e->getMessage()); 
-    include __DIR__ . "/errors/500.php"; 
+// Инициализация CSRF-токена для сессии
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
+
+// Роутер запросов
+require_once ROOT_PATH . '/src/Utils/Router.php';
+$router = new Utils\Router();
+
+// Обработка запроса
+$router->dispatch();
