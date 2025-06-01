@@ -42,8 +42,8 @@ services:
       - ./docker/mysql/init:/docker-entrypoint-initdb.d
     networks:
       - app-network
-    ports:
-      - "3306:3306"
+    # ports:
+    #   - "3306:3306"
 
 networks:
   app-network:
