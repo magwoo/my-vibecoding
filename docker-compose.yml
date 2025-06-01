@@ -2,10 +2,11 @@ version: '3'
 
 services:
   caddy:
+    container_name: vibe-proxy
     image: caddy:2-alpine
-    ports:
-      - "80:80"
-      - "443:443"
+    # ports:
+    #   - "80:80"
+    #   - "443:443"
     volumes:
       - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
       - ./:/var/www/html
@@ -13,6 +14,7 @@ services:
       - caddy_config:/config
     networks:
       - app-network
+      - proxy_network
     depends_on:
       - php
 
@@ -46,6 +48,8 @@ services:
 networks:
   app-network:
     driver: bridge
+  proxy_network:
+    external: true
 
 volumes:
   caddy_data:
