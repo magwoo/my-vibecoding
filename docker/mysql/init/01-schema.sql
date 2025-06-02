@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS products (
     price DECIMAL(10, 2) NOT NULL,
     brand VARCHAR(100) NOT NULL,
     specs JSON NOT NULL, -- JSON для хранения характеристик (ОЗУ, память, экран и т.д.)
-    image_path VARCHAR(255),
+    image_path TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
